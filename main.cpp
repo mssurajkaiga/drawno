@@ -19,7 +19,7 @@ int lowThreshold = 100;
 int const max_lowThreshold = 100;
 int ratio = 3;
 int kernel_size = 3;
-char* window_name = "Edge Map";
+char* window_name = "Output";
 
 /**
  * @function CannyThreshold
