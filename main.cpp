@@ -7,7 +7,7 @@
 using namespace cv;
 using namespace std;
 
-Mat src; Mat src_gray; Mat src_gray2, src_gray3;
+Mat src; Mat src_gray; Mat src_gray2, src_gray3, output;
 int thresh = 255;
 int max_thresh = 255;
 RNG rng(12345);
@@ -20,6 +20,12 @@ int const max_lowThreshold = 100;
 int ratio = 3;
 int kernel_size = 3;
 char* window_name = "Output";
+
+int morph_elem = 0;
+int morph_size = 0;
+int const max_operator = 4;
+int const max_elem = 2;
+int const max_kernel_size = 21;
 
 /**
  * @function CannyThreshold
@@ -50,9 +56,72 @@ void CannyThreshold(int, void*)
   imshow(window_name, src_gray3);
 }
 
-/**
- * @function main
- */
+void morph(Mat &src, Mat &dst, int morph_operator)
+{
+
+  int operation = morph_operator + 2;
+
+  Mat element = getStructuringElement( morph_elem, Size( 2*morph_size + 1, 2*morph_size+1 ), Point( morph_size, morph_size ) );
+
+  morphologyEx(src, dst, operation, element);
+}
+
+Mat remove_hand(Mat* img_hand)
+{
+  Mat output;
+  output.create(img_hand->size(), img_hand->type());
+  Mat hsv_img;
+  hsv_img.create(img_hand->size(), img_hand->type());
+
+  Scalar hsv_min = Scalar(0, 30, 80, 0);
+  Scalar hsv_max = Scalar(50, 220, 255, 0);
+
+  cvtColor(*img_hand, hsv_img, CV_BGR2HSV);
+  inRange(hsv_img, hsv_min, hsv_max, output);
+  return output;
+}
+
+Mat contour_bound(Mat input)
+{
+  vector<vector<Point> > contours;
+  vector<Vec4i> hierarchy;
+  findContours(input, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE, Point(0, 0) );
+  vector<vector<Point> > contours_poly( contours.size() );
+  vector<Rect> boundRect( contours.size() );
+  vector<Point2f>center( contours.size() );
+  vector<float>radius( contours.size() );
+
+  for( int i = 0; i < contours.size(); i++ )
+     { approxPolyDP( Mat(contours[i]), contours_poly[i], 3, true );
+       boundRect[i] = boundingRect( Mat(contours_poly[i]) );
+       minEnclosingCircle( (Mat)contours_poly[i], center[i], radius[i] );
+     }
+
+
+  /// Draw polygonal contour + bonding rects + circles
+  Mat drawing = Mat::zeros(output.size(), CV_8UC3 );
+  for( int i = 0; i< contours.size(); i++ )
+     {
+       Scalar color = Scalar( rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255) );
+       drawContours( drawing, contours_poly, i, color, 1, 8, vector<Vec4i>(), 0, Point() );
+       rectangle(drawing, boundRect[i].tl(), boundRect[i].br(), color, 2, 8, 0 );
+     }
+
+  return drawing;
+}
+
+Mat fill_white(Mat& input)
+{
+   int col, row, z;
+   uchar b, g, r;
+   for( y = 0; row < input->height; y++ ) {
+     for ( col = 0; col < img->width; col++ ) {
+       b = input->imageData[input->widthStep * row + col * 3];
+     }
+   }
+}
+
+
 int main( int argc, char** argv )
 {
   /// Load source image and convert it to gray
@@ -79,28 +148,27 @@ int main( int argc, char** argv )
   cvtColor(drawing, src_gray2, CV_BGR2GRAY );
 
   /// Create a window
-  namedWindow( window_name, CV_WINDOW_AUTOSIZE );
 
   Mat canny_output;
-  vector<vector<Point> > contours;
-  vector<Vec4i> hierarchy;
 
   /// Detect edges using canny
-  Canny( src_gray, canny_output, thresh, thresh*2, 3 );
-  /// Find contours
-  findContours( canny_output, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE, Point(0, 0) );
+  Canny(src_gray, canny_output, thresh, thresh*2, 3);
+  namedWindow(window_name, CV_WINDOW_AUTOSIZE);
+  imshow(window_name, canny_output);
 
-  /// Draw contours
-  drawing = Mat::zeros( canny_output.size(), CV_8UC3 );
-  for( size_t i = 0; i< contours.size(); i++ )
-     {
-       Scalar color = Scalar( rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255) );
-       drawContours( drawing, contours, (int)i, color, 2, 8, hierarchy, 0, Point() );
-     }
+  output = remove_hand(&src);
+  namedWindow("Hand removed", CV_WINDOW_AUTOSIZE);
+  imshow("Hand removed", output);
 
+  //threshold(output ,canny_output, 0, 255, 1);
+  imshow(window_name, output);
+
+//  drawing = contour_bound(output);
+//  imshow(window_name, drawing);
+  /*
   /// Show the image
   CannyThreshold(0, 0);
-
+  */
   waitKey(0);
   return(0);
 }
