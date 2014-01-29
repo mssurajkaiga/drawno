@@ -41,9 +41,10 @@ void CannyThreshold(int, void*)
   unsigned char *input = (unsigned char*)(src_gray3.data);
     for(int i = 0;i < src_gray3.rows;i++) {
       for(int j = 0;j < src_gray3.cols;j++) {
-            if (input[src_gray3.step * j + i ] != 0) {
+            if (input[src_gray3.step * j + i ] == 0) {
                 input[src_gray3.step * j + i ] = 255;
             }
+            else input[src_gray3.step * j + i ] = 0;
         }
     }
   imshow(window_name, src_gray3);
