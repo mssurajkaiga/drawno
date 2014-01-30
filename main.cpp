@@ -110,15 +110,58 @@ Mat contour_bound(Mat input)
   return drawing;
 }
 
-Mat fill_white(Mat& input)
+Mat fill_white(Mat &input)
 {
-   int col, row, z;
-   uchar b, g, r;
-   for( y = 0; row < input->height; y++ ) {
-     for ( col = 0; col < img->width; col++ ) {
-       b = input->imageData[input->widthStep * row + col * 3];
+  int col, row, min, max;
+  uchar i;
+  Mat output, temp;
+  output.create(input.size(), input.type());
+  temp = input.clone();
+
+  /*
+  vector<vector<Point> > contours;
+  vector<Vec4i> hierarchy;
+  findContours(temp, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE, Point(0, 0));
+  */
+  medianBlur(temp, input, 9);
+
+  // Finds the contour with the largest area
+  /*
+  int area = 0;
+  int idx;
+  for(int i=0; i<contours.size();i++) {
+    if(area < contours[i].size()) {
+      area = contours[i].size();
+      idx = i;
+    }
+  }
+*/
+  for (row = 0; row < input.rows; row++ ) {
+   min = input.cols;
+   max = 0;
+   for (col = 0; col < input.cols; col++ ) {
+    /*
+    int o = pointPolygonTest(contours[idx], Point2f(col, input.rows - row), false);
+    if(o==-1) {
+      continue;
+    }*/
+     i = input.data[input.step * row + col];
+     if (i==255) {
+      if (col < min) min = col;
+      if (col > max) max = col;
      }
    }
+
+   for (col = 0; col < output.cols; col++ ) {
+    if(col>=min && col<=max){
+      output.data[output.step * row + col] = 255;
+    }
+    else {
+      output.data[output.step * row + col] = 0;
+    }
+   }
+  }
+   return output;
 }
 
 
@@ -161,10 +204,12 @@ int main( int argc, char** argv )
   imshow("Hand removed", output);
 
   //threshold(output ,canny_output, 0, 255, 1);
-  imshow(window_name, output);
+  canny_output = fill_white(output);
+  imshow(window_name, canny_output);
 
-//  drawing = contour_bound(output);
-//  imshow(window_name, drawing);
+  drawing = contour_bound(output);
+  namedWindow("Contour bound", CV_WINDOW_AUTOSIZE);
+  imshow("Contour bound", drawing);
   /*
   /// Show the image
   CannyThreshold(0, 0);
