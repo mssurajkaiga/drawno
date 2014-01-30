@@ -32,7 +32,7 @@ double alpha = 0.5;
 char* window_name2 = "Edge Map - 80";
 char* window_name3 = "Edge Map - 100";
 
-float progress = 0;
+int progress = 0; /* tracks progress of user's drawing - 0, 1, 2, 3 */
 
 Mat range_filter(Mat input, Scalar bgr_min, Scalar bgr_max)
 {
@@ -66,7 +66,7 @@ Mat range_filter(Mat input, Scalar bgr_min, Scalar bgr_max)
     return output;
 }
 
-void CannyThreshold(int lowThreshold, char* window_name)
+Mat CannyThreshold(int lowThreshold, Mat input)
 {
   /// Reduce noise with a kernel 3x3
   GaussianBlur( src_gray, detected_edges, Size(1,1), 1.5, 1.5 );
@@ -77,15 +77,10 @@ void CannyThreshold(int lowThreshold, char* window_name)
   /// Using Canny's output as a mask, we display our result
   dst = Scalar::all(0);
   Mat output;
-  src.copyTo( dst, detected_edges);
+  input.copyTo( dst, detected_edges);
   bitwise_not(dst, detected_edges);
   
-  Scalar bgr_min = Scalar(100, 100, 100);
-  Scalar bgr_max = Scalar(255, 255, 255);
-  output = range_filter(src, bgr_min, bgr_max);
-
-  addWeighted(output, 0.5, detected_edges, 0.5, 0.0, dst);
-  imshow( window_name, dst);
+  return detected_edges;
 }
 
 void morph(Mat &src, Mat &dst, int morph_operator)
@@ -276,9 +271,29 @@ void run(Mat src, bool is_cam)
 
 Mat generate_image(Mat src)
 {
-  if (progress==0) {
-    return input;
+  /*calculate_progress()*/
+  switch(progress) {
+    case 0:
+      dst.create(input.size(), input.type());
+      cvtColor(input, src_gray, CV_BGR2GRAY);
+      return CannyThreshold(100, input);
+      break;
+
+    case 1:
+      /*Scalar bgr_min = Scalar(100, 100, 100);
+      Scalar bgr_max = Scalar(255, 255, 255);
+      output = range_filter(src, bgr_min, bgr_max);
+
+      addWeighted(output, 0.5, detected_edges, 0.5, 0.0, dst);
+      */
+      return src;
+      break;
+
+    default:
+      return src;
   }
+
+  return src;
 }
 
 int main( int argc, char** argv )
@@ -331,6 +346,7 @@ int main( int argc, char** argv )
         display_image = generate_image(src);
         imshow("Display", display_image);
         waitKey(10);
+        continue;
     }
   //}
 
