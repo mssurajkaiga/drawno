@@ -84,7 +84,7 @@ Mat CannyThreshold(int lowThreshold, Mat input)
   cvtColor(detected_edges, dst, CV_BGR2GRAY);
   cvtColor(dst, detected_edges, CV_GRAY2BGR);
   
-  int erosion_type, erosion_elem = 0, erosion_size = 1;
+  int erosion_type, erosion_elem = 0, erosion_size = 2;
   if( erosion_elem == 0 ){ erosion_type = MORPH_RECT; }
   else if( erosion_elem == 1 ){ erosion_type = MORPH_CROSS; }
   else if( erosion_elem == 2) { erosion_type = MORPH_ELLIPSE; }
@@ -288,6 +288,29 @@ void run(Mat src, bool is_cam)
     else return;
 }
 
+void calculate_progress(Mat frame)
+{
+    Mat display_image2, filtered;
+    display_image2 = display_image.clone();
+    Scalar bgr_min = Scalar(20,20,0);
+    Scalar bgr_max = Scalar(100,100,255);
+    filtered = range_filter(frame, bgr_min, bgr_max);
+    resize(display_image2, frame, filtered.size(), 0, 0, INTER_LINEAR);
+    
+    imwrite("images/saved/compared01.jpg", frame);
+    imwrite("images/saved/compared1.jpg", filtered);
+
+    cvtColor(filtered, display_image2, CV_BGR2GRAY);
+    //medianBlur(display_image2, filtered);
+    cvtColor(display_image2, filtered, CV_GRAY2BGR);
+    imshow("before", frame);
+    imshow("after", filtered);
+
+    waitKey(100);
+
+}
+
+
 Mat generate_image(Mat src)
 {
   /*calculate_progress()*/
@@ -333,12 +356,6 @@ Mat generate_image(Mat src)
       break;
 
     case 2:
-      dst.create(input.size(), input.type());
-      cvtColor(input, src_gray, CV_BGR2GRAY);
-      return CannyThreshold(60, input);
-      break;
-
-    case 3:
       bgr_min = Scalar(200, 200, 200);
       bgr_max = Scalar(255, 255, 255);
       output = range_filter(input, bgr_min, bgr_max);
@@ -347,11 +364,11 @@ Mat generate_image(Mat src)
       cvtColor(input, src_gray, CV_BGR2GRAY);
       detected_edges = CannyThreshold(80, input);
       
-      addWeighted(output, 0.5, detected_edges, 0.5, 0.0, dst);
+      addWeighted(output, 0.2, detected_edges, 0.8, 0.0, dst);
       return dst;
       break;
 
-    case 4:
+    case 3:
       bgr_min = Scalar(150, 150, 150);
       bgr_max = Scalar(255, 255, 255);
       output = range_filter(input, bgr_min, bgr_max);
@@ -360,11 +377,11 @@ Mat generate_image(Mat src)
       cvtColor(input, src_gray, CV_BGR2GRAY);
       detected_edges = CannyThreshold(80, input);
 
-      addWeighted(output, 0.5, detected_edges, 0.5, 0.0, dst);
+      addWeighted(output, 0.5, detected_edges, 0.5, 0.5, dst);
       return dst;
       break;
 
-    case 5:
+    case 4:
       bgr_min = Scalar(100, 100, 100);
       bgr_max = Scalar(255, 255, 255);
       output = range_filter(input, bgr_min, bgr_max);
@@ -377,7 +394,7 @@ Mat generate_image(Mat src)
       return dst;
       break;
 
-    case 6:
+    case 5:
       bgr_min = Scalar(50, 50, 50);
       bgr_max = Scalar(255, 255, 255);
       output = range_filter(input, bgr_min, bgr_max);
@@ -390,6 +407,32 @@ Mat generate_image(Mat src)
       return dst;
       break;
 
+    case 6:
+      bgr_min = Scalar(0, 0, 0);
+      bgr_max = Scalar(255, 255, 255);
+      output = range_filter(input, bgr_min, bgr_max);
+      
+      dst.create(input.size(), input.type());
+      cvtColor(input, src_gray, CV_BGR2GRAY);
+      detected_edges = CannyThreshold(80, input);
+
+      addWeighted(output, 0.5, detected_edges, 0.5, 0.0, dst);
+      return dst;
+      break;
+/*
+    case 8:
+      bgr_min = Scalar(50, 50, 50);
+      bgr_max = Scalar(255, 255, 255);
+      output = range_filter(input, bgr_min, bgr_max);
+      
+      dst.create(input.size(), input.type());
+      cvtColor(input, src_gray, CV_BGR2GRAY);
+      detected_edges = CannyThreshold(80, input);
+
+      addWeighted(output, 0.5, detected_edges, 0.5, 0.0, dst);
+      return dst;
+      break;
+*/
     default:
       return src;
   }
@@ -399,8 +442,11 @@ Mat generate_image(Mat src)
 
 int main( int argc, char** argv )
 {
-  char filename[26] = "images/saved/image001.jpg";
+  char filename[26] = "images/saved/image000.jpg";
+  int c;
   
+  namedWindow("before", CV_WINDOW_AUTOSIZE);
+  namedWindow("after", CV_WINDOW_AUTOSIZE);
 
   input = imread(argv[1], 1);
   if(argc==3) {
@@ -412,7 +458,8 @@ int main( int argc, char** argv )
     if(!cap.isOpened())  // check if we succeeded
         return -1;
 
-    namedWindow("Display", CV_WINDOW_AUTOSIZE);
+    namedWindow("Display", CV_WINDOW_NORMAL);
+    setWindowProperty("Display", CV_WND_PROP_FULLSCREEN, CV_WINDOW_FULLSCREEN);
     Mat edges, white;
     display_image = Mat::zeros(input.size(), CV_8UC3);
     white = imread("images/white.jpg");
@@ -422,14 +469,20 @@ int main( int argc, char** argv )
         display_image_copy = generate_image(src);
         display_image = display_image_copy.clone();
         imshow("Display", display_image);
-        if (waitKey(5000)==27) {
+        c = waitKey(5000);
+        if(c==27) {
             break;
         }
+        else if(c==32){
+          progress++;
+        }
+
         imshow("Display", white);
-        cap>>frame;
-        cout<<filename<<"\n";
-        imwrite(filename, frame);
-        
+        waitKey(200);
+        //cap>>frame;
+        frame = imread("images/saved/image002.jpg");
+        waitKey(300);
+        /*
         filename[20]++;
         if(filename[20]>'9') {
             filename[19]++;
@@ -438,7 +491,11 @@ int main( int argc, char** argv )
               filename[18]++;
               filename[19]='0';
             }
-          }
+        }
+        cout<<filename<<"\n";
+        imwrite(filename, frame);
+        */
+        //calculate_progress(frame);
       }
 
   return 0;
