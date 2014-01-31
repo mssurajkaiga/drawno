@@ -13,6 +13,7 @@ int max_thresh = 255;
 RNG rng(12345);
 
 Mat dst, detected_edges, drawing;
+Mat frame, display_image, display_image_copy;
 
 int edgeThresh = 1;
 int lowThreshold = 100;
@@ -72,7 +73,7 @@ Mat CannyThreshold(int lowThreshold, Mat input)
   GaussianBlur( src_gray, detected_edges, Size(1,1), 1.5, 1.5 );
 
   /// Canny detector
-  Canny( detected_edges, detected_edges, lowThreshold, lowThreshold*ratio, kernel_size );
+  Canny(detected_edges, detected_edges, lowThreshold, lowThreshold*ratio, kernel_size );
 
   /// Using Canny's output as a mask, we display our result
   dst = Scalar::all(0);
@@ -80,7 +81,25 @@ Mat CannyThreshold(int lowThreshold, Mat input)
   input.copyTo( dst, detected_edges);
   bitwise_not(dst, detected_edges);
   
-  return detected_edges;
+  cvtColor(detected_edges, dst, CV_BGR2GRAY);
+  cvtColor(dst, detected_edges, CV_GRAY2BGR);
+  
+  int erosion_type, erosion_elem = 0, erosion_size = 1;
+  if( erosion_elem == 0 ){ erosion_type = MORPH_RECT; }
+  else if( erosion_elem == 1 ){ erosion_type = MORPH_CROSS; }
+  else if( erosion_elem == 2) { erosion_type = MORPH_ELLIPSE; }
+
+  Mat element = getStructuringElement( erosion_type,
+                                       Size( 2*erosion_size + 1, 2*erosion_size+1 ),
+                                       Point( erosion_size, erosion_size ) );
+  /// Apply the erosion operation
+  erode( detected_edges, output, element );
+
+  return output;
+  
+
+  //return dst;
+
 }
 
 void morph(Mat &src, Mat &dst, int morph_operator)
@@ -272,6 +291,34 @@ void run(Mat src, bool is_cam)
 Mat generate_image(Mat src)
 {
   /*calculate_progress()*/
+    Scalar bgr_min, bgr_max;
+    Mat src_test1 = display_image.clone();
+
+    Mat hsv_base;
+    Mat hsv_test1;
+
+    cvtColor(src, hsv_base, CV_BGR2HSV);
+    cvtColor(src_test1, hsv_test1, CV_BGR2HSV);
+
+    int h_bins = 50; int s_bins = 32;
+    int histSize[] = { h_bins, s_bins };
+    float h_ranges[] = { 0, 256 };
+    float s_ranges[] = { 0, 180 };
+    const float* ranges[] = { h_ranges, s_ranges };
+    int channels[] = { 0, 1 };
+    MatND hist_base;
+    MatND hist_test1;
+
+    calcHist(&hsv_base, 1, channels, Mat(), hist_base, 2, histSize, ranges, true, false);
+    normalize(hist_base, hist_base, 0, 1, NORM_MINMAX, -1, Mat());
+    calcHist(&hsv_test1, 1, channels, Mat(), hist_test1, 2, histSize, ranges, true, false);
+    normalize(hist_test1, hist_test1, 0, 1, NORM_MINMAX, -1, Mat());
+    double base_test1 = compareHist(hist_base, hist_test1, 0);
+/*
+    if (base_test1 >= 0.8){
+      progress++;
+    }
+*/
   switch(progress) {
     case 0:
       dst.create(input.size(), input.type());
@@ -280,13 +327,67 @@ Mat generate_image(Mat src)
       break;
 
     case 1:
-      /*Scalar bgr_min = Scalar(100, 100, 100);
-      Scalar bgr_max = Scalar(255, 255, 255);
-      output = range_filter(src, bgr_min, bgr_max);
+      dst.create(input.size(), input.type());
+      cvtColor(input, src_gray, CV_BGR2GRAY);
+      return CannyThreshold(80, input);
+      break;
+
+    case 2:
+      dst.create(input.size(), input.type());
+      cvtColor(input, src_gray, CV_BGR2GRAY);
+      return CannyThreshold(60, input);
+      break;
+
+    case 3:
+      bgr_min = Scalar(200, 200, 200);
+      bgr_max = Scalar(255, 255, 255);
+      output = range_filter(input, bgr_min, bgr_max);
+
+      dst.create(input.size(), input.type());
+      cvtColor(input, src_gray, CV_BGR2GRAY);
+      detected_edges = CannyThreshold(80, input);
+      
+      addWeighted(output, 0.5, detected_edges, 0.5, 0.0, dst);
+      return dst;
+      break;
+
+    case 4:
+      bgr_min = Scalar(150, 150, 150);
+      bgr_max = Scalar(255, 255, 255);
+      output = range_filter(input, bgr_min, bgr_max);
+
+      dst.create(input.size(), input.type());
+      cvtColor(input, src_gray, CV_BGR2GRAY);
+      detected_edges = CannyThreshold(80, input);
 
       addWeighted(output, 0.5, detected_edges, 0.5, 0.0, dst);
-      */
-      return src;
+      return dst;
+      break;
+
+    case 5:
+      bgr_min = Scalar(100, 100, 100);
+      bgr_max = Scalar(255, 255, 255);
+      output = range_filter(input, bgr_min, bgr_max);
+
+      dst.create(input.size(), input.type());
+      cvtColor(input, src_gray, CV_BGR2GRAY);
+      detected_edges = CannyThreshold(80, input);
+
+      addWeighted(output, 0.5, detected_edges, 0.5, 0.0, dst);
+      return dst;
+      break;
+
+    case 6:
+      bgr_min = Scalar(50, 50, 50);
+      bgr_max = Scalar(255, 255, 255);
+      output = range_filter(input, bgr_min, bgr_max);
+      
+      dst.create(input.size(), input.type());
+      cvtColor(input, src_gray, CV_BGR2GRAY);
+      detected_edges = CannyThreshold(80, input);
+
+      addWeighted(output, 0.5, detected_edges, 0.5, 0.0, dst);
+      return dst;
       break;
 
     default:
@@ -298,38 +399,11 @@ Mat generate_image(Mat src)
 
 int main( int argc, char** argv )
 {
-  /// Load source image and convert it to gray
-  /*
-  if (argc==2) {
   
-    src = imread(argv[1], 1);
-    run(src, false);
-  }
-  
-  else if(argc==3) {
-    cout<<"here";
-    src1 = imread(argv[1], 1);
-    src2 = imread(argv[2], 1);
-
-    Mat canny_output, output, hand1, hand2;
-    canny_output = mark_hand(&src1);
-    hand1 = fill_white(canny_output);
-
-    canny_output = mark_hand(&src2);
-    hand2 = fill_white(canny_output);
-
-    namedWindow("hand1", CV_WINDOW_AUTOSIZE);
-    imshow("hand1", hand1);
-    namedWindow("hand2", CV_WINDOW_AUTOSIZE);
-    imshow("hand2", hand2);
-
-    output = combine(src1, hand1, src2, hand2);
-    namedWindow("Combined image", CV_WINDOW_AUTOSIZE);
-    imshow("Combined image", output);\
-    waitKey(0);
-  }
-  */
   input = imread(argv[1], 1);
+  if(argc==3) {
+    progress = (int)argv[2][0] - 48;
+  }
 
   //else {
     VideoCapture cap(0); // open the default camera
@@ -337,16 +411,21 @@ int main( int argc, char** argv )
         return -1;
 
     namedWindow("Display", CV_WINDOW_AUTOSIZE);
-    Mat edges;
-    Mat frame, display_image;
+    Mat edges, white;
+    display_image = Mat::zeros(input.size(), CV_8UC3);
+    white = imread("images/white.jpg");
+    cap>>frame; // get a new frame from camera
+    src = frame.clone();
     for(;;)
     {
-        cap >> frame; // get a new frame from camera
-        src = frame.clone();
-        display_image = generate_image(src);
+        display_image_copy = generate_image(src);
+        display_image = display_image_copy.clone();
         imshow("Display", display_image);
-        waitKey(10);
-        continue;
+        if (waitKey(5000)==27) {
+            break;
+        }
+        imshow("Display", white);
+        cap>>frame;
     }
   //}
 
