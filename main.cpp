@@ -399,7 +399,9 @@ Mat generate_image(Mat src)
 
 int main( int argc, char** argv )
 {
+  char filename[26] = "images/saved/image001.jpg";
   
+
   input = imread(argv[1], 1);
   if(argc==3) {
     progress = (int)argv[2][0] - 48;
@@ -416,8 +418,7 @@ int main( int argc, char** argv )
     white = imread("images/white.jpg");
     cap>>frame; // get a new frame from camera
     src = frame.clone();
-    for(;;)
-    {
+    for(;;) {
         display_image_copy = generate_image(src);
         display_image = display_image_copy.clone();
         imshow("Display", display_image);
@@ -426,8 +427,19 @@ int main( int argc, char** argv )
         }
         imshow("Display", white);
         cap>>frame;
-    }
-  //}
+        cout<<filename<<"\n";
+        imwrite(filename, frame);
+        
+        filename[20]++;
+        if(filename[20]>'9') {
+            filename[19]++;
+            filename[20]='0';
+            if(filename[19]>'9') {
+              filename[18]++;
+              filename[19]='0';
+            }
+          }
+      }
 
   return 0;
 }
