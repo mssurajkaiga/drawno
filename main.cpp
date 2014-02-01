@@ -96,9 +96,6 @@ Mat CannyThreshold(int lowThreshold, Mat input)
   erode( detected_edges, output, element );
 
   return output;
-  
-
-  //return dst;
 
 }
 
@@ -287,10 +284,12 @@ void run(Mat src, bool is_cam)
       waitKey(0);
     else return;
 }
-
+/*
 void calculate_progress(Mat frame)
 {
-    Mat display_image2, filtered;
+    int i1,i2, t = 50;
+    float wc = 0.01, mean;
+    Mat display_image2, filtered, frame_g, filtered_g;
     display_image2 = display_image.clone();
     Scalar bgr_min = Scalar(20,20,0);
     Scalar bgr_max = Scalar(100,100,255);
@@ -300,16 +299,27 @@ void calculate_progress(Mat frame)
     imwrite("images/saved/compared01.jpg", frame);
     imwrite("images/saved/compared1.jpg", filtered);
 
-    cvtColor(filtered, display_image2, CV_BGR2GRAY);
+    cvtColor(filtered, filtered_g, CV_BGR2GRAY);
     //medianBlur(display_image2, filtered);
-    cvtColor(display_image2, filtered, CV_GRAY2BGR);
+    //cvtColor(display_image2, filtered, CV_GRAY2BGR);
+    cvtColor(frame, frame_g, CV_GRAY2BGR);
     imshow("before", frame);
     imshow("after", filtered);
-
     waitKey(100);
 
-}
+    for (row = 0; row < frame_g.rows; row++) {
+      for (col = 0; col < frame_g.cols; col++) {
+        i1 = frame_g.data[frame_g.step * row + col];
+        for (col2 = col - frame_g.cols * wc; col2 < col + frame_g.cols*wc; col2++){
+          i2 = frame_g.data[frame_g.step * row + col];
+          mean = mean + (i1-i2)*(i1-i2);
+        }
 
+      }
+    }
+
+}
+*/
 
 Mat generate_image(Mat src)
 {
@@ -337,11 +347,7 @@ Mat generate_image(Mat src)
     calcHist(&hsv_test1, 1, channels, Mat(), hist_test1, 2, histSize, ranges, true, false);
     normalize(hist_test1, hist_test1, 0, 1, NORM_MINMAX, -1, Mat());
     double base_test1 = compareHist(hist_base, hist_test1, 0);
-/*
-    if (base_test1 >= 0.8){
-      progress++;
-    }
-*/
+
   switch(progress) {
     case 0:
       dst.create(input.size(), input.type());
@@ -419,20 +425,7 @@ Mat generate_image(Mat src)
       addWeighted(output, 0.5, detected_edges, 0.5, 0.0, dst);
       return dst;
       break;
-/*
-    case 8:
-      bgr_min = Scalar(50, 50, 50);
-      bgr_max = Scalar(255, 255, 255);
-      output = range_filter(input, bgr_min, bgr_max);
-      
-      dst.create(input.size(), input.type());
-      cvtColor(input, src_gray, CV_BGR2GRAY);
-      detected_edges = CannyThreshold(80, input);
 
-      addWeighted(output, 0.5, detected_edges, 0.5, 0.0, dst);
-      return dst;
-      break;
-*/
     default:
       return src;
   }
@@ -479,7 +472,6 @@ int main( int argc, char** argv )
 
         imshow("Display", white);
         waitKey(200);
-        //cap>>frame;
         frame = imread("images/saved/image002.jpg");
         waitKey(300);
         /*
